@@ -1,0 +1,9 @@
+node_modules/
+.env
+*.sqlite
+*.log
+npm-debug.log*
+dist/
+.DS_Store
+node_modules
+.env

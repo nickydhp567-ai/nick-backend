@@ -1,0 +1,21 @@
+{
+  "name": "nick-bank-backend",
+  "version": "1.0.0",
+  "description": "NICK Bank PLC — pocket banking & automated savings API",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "sequelize": "^6.37.3",
+    "pg": "^8.12.0",
+    "pg-hstore": "^2.3.4",
+    "sqlite3": "^5.1.7",
+    "helmet": "^7.1.0",
+    "cors": "^2.8.5"
+  },
+  "engines": { "node": ">=18" }
+}
