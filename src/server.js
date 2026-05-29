@@ -6,8 +6,9 @@ const routes = require('./routes');
 const { connect, sequelize, usingPostgres } = require('./config/database');
 
 const app = express();
-app.use(helmet());
-app.use(cors());
+app.use(helmet({ crossOriginResourcePolicy: false }));
+app.use(cors({ origin: '*', methods: ['GET','POST','PUT','DELETE','OPTIONS'], allowedHeaders: ['Content-Type','Authorization'] }));
+app.options('*', cors());
 app.use(express.json());
 
 app.get('/health', (req, res) => res.json({ ok: true, db: usingPostgres ? 'postgres' : 'sqlite' }));
