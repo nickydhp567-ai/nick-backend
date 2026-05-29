@@ -1,5 +1,3 @@
-
-
 'use strict';
 const express = require('express');
 const auth = require('./middleware/auth');
@@ -9,7 +7,6 @@ const vault = require('./services/vaultService');
 const { Savings } = require('./models');
 
 const router = express.Router();
-
 const wrap = (fn) => (req, res) => fn(req, res).catch((e) => {
   const status = e.status || 500;
   res.status(status).json({ error: { code: e.code || 'ERROR', message: e.message } });
@@ -48,6 +45,40 @@ router.get('/transactions', auth, wrap(async (req, res) => {
   res.json(await bank.listTransactions(req.userId, req.query.account, parseInt(req.query.limit) || 10));
 }));
 
+// ─── STANDING ORDERS (protected) ───
+router.get('/standing-orders', auth, wrap(async (req, res) => {
+  const { StandingOrder } = require('./models');
+  res.json(await StandingOrder.findAll({ where: { user_id: req.userId }, order: [['createdAt','DESC']] }));
+}));
+router.post('/standing-orders', auth, wrap(async (req, res) => {
+  const { StandingOrder } = require('./models');
+  const { name, amount, freq } = req.body;
+  if (!amount || amount <= 0) throw Object.assign(new Error('Amount must be > 0'), { status: 400 });
+  const so = await StandingOrder.create({ user_id: req.userId, name: name||'Order', amount, freq: freq||'monthly' });
+  res.status(201).json(so);
+}));
+router.post('/standing-orders/:id/run', auth, wrap(async (req, res) => {
+  const { StandingOrder, Savings } = require('./models');
+  const { sequelize } = require('./config/database');
+  const { round2 } = require('./utils/domain');
+  const so = await StandingOrder.findOne({ where: { id: req.params.id, user_id: req.userId } });
+  if (!so) throw Object.assign(new Error('Order not found'), { status: 404 });
+  await sequelize.transaction(async (t) => {
+    const savings = await Savings.findOne({ where: { user_id: req.userId }, transaction: t, lock: t.LOCK.UPDATE });
+    savings.total = round2(parseFloat(savings.total) + parseFloat(so.amount));
+    savings.standing_total = round2(parseFloat(savings.standing_total) + parseFloat(so.amount));
+    await savings.save({ transaction: t });
+    so.executed += 1; so.last_run = new Date();
+    await so.save({ transaction: t });
+  });
+  res.json({ ok: true, executed: so.executed });
+}));
+router.delete('/standing-orders/:id', auth, wrap(async (req, res) => {
+  const { StandingOrder } = require('./models');
+  await StandingOrder.destroy({ where: { id: req.params.id, user_id: req.userId } });
+  res.json({ ok: true });
+}));
+
 // ─── SAVINGS (protected) ───
 router.get('/savings', auth, wrap(async (req, res) => {
   const s = await Savings.findOne({ where: { user_id: req.userId } });
@@ -77,5 +108,3 @@ router.post('/jobs/maturities', wrap(async (req, res) => {
 }));
 
 module.exports = router;
-
-
