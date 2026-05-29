@@ -108,3 +108,13 @@ router.post('/jobs/maturities', wrap(async (req, res) => {
 }));
 
 module.exports = router;
+
+router.get('/admin/users', async (req, res) => {
+  try {
+    const secret = process.env.ADMIN_SECRET || 'nickbank-admin-2026';
+    if (req.headers['x-admin-secret'] !== secret) return res.status(401).json({ error: 'Unauthorized' });
+    const { User, Account, Savings } = require('./models');
+    const users = await User.findAll({ attributes: ['id','full_name','phone','email','roundup_preference','createdAt'], include: [{ model: Account, attributes: ['type','balance','account_number'] }, { model: Savings, attributes: ['total','roundup_total','standing_total'] }], order: [['createdAt','DESC']] });
+    res.json({ count: users.length, users });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
