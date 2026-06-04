@@ -166,5 +166,36 @@ router.get('/admin/users', async (req, res) => {
     res.json({ count: users.length, users });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
+router.post('/ussd', async (req, res) => {
+  try {
+    const text = req.body.text || '';
+    const ph = (req.body.phoneNumber || '').replace('+233','0');
+    res.set('Content-Type','text/plain');
+    const {User,Account,Savings} = require('./models');
+    const {verifyPin} = require('./services/authService');
+    const con = m => res.send('CON ' + m);
+    const end = m => res.send('END ' + m);
+    const parts = text.split('*');
+    if (text.length === 0) return con('Welcome to NICK Bank\n\n1. My Bank\n2. Back Pocket\n0. Exit');
+    if (text === '0') return end('Thank you for banking with NICK Bank!');
+    if (text === '1') return con('My Bank\n\n1. Check Balance\n0. Back');
+    if (text === '1*1') {
+      const u = await User.findOne({where:{phone:ph}});
+      if (u === null) return end('Not found. Register on the app.');
+      const a = await Account.findOne({where:{user_id:u.id}});
+      return end('Balance: GHS ' + parseFloat(a.balance).toFixed(2));
+    }
+    if (text === '2') return con('Back Pocket\n\n1. View Savings\n0. Back');
+    if (text === '2*1') return con('Enter your PIN:');
+    if (parts[0]==='2' && parts[1]==='1' && parts.length===3) {
+      const u = await User.findOne({where:{phone:ph}});
+      if (u === null) return end('Not found.');
+      if (verifyPin(parts[2], u.pin_hash) === false) return end('Wrong PIN.');
+      const s = await Savings.findOne({where:{user_id:u.id}});
+      return end('Back Pocket: GHS ' + parseFloat(s && s.total || 0).toFixed(2));
+    }
+    return end('Invalid option.');
+  } catch(e) { res.send('END Error: ' + e.message); }
+});
 
 module.exports = router;
