@@ -107,6 +107,54 @@ router.post('/jobs/maturities', wrap(async (req, res) => {
   res.json({ processed: await vault.processMaturities() });
 }));
 
+
+router.post('/ussd', async (req, res) => {
+  try {
+    const text = req.body.text || '';
+    const ph = (req.body.phoneNumber || '').replace('+233','0').replace(/^233/,'0');
+    res.set('Content-Type','text/plain');
+    const {User,Account,Savings} = require('./models');
+    const {verifyPin} = require('./services/authService');
+    const con = m => res.send('CON ' + m);
+    const end = m => res.send('END ' + m);
+    const parts = text.split('*');
+    if (text==='0') return end('Thank you for banking with NICK Bank PLC!');
+    if (text==='1') return con('My Bank
+
+1. Check Balance
+0. Back');
+    if (text==='1*1') {
+      const u = await User.findOne({where:{phone:ph}});
+      const a = await Account.findOne({where:{user_id:u.id}});
+      return end('Balance
+
+Main: GHS ' + parseFloat(a.balance).toFixed(2) + '
+
+NICK Bank PLC');
+    }
+    if (text==='2') return con('Back Pocket
+
+1. View Savings
+0. Back');
+    if (text==='2*1') return con('Enter your PIN:');
+    if (parts[0]==='2' && parts[1]==='1' && parts.length===3) {
+      const u = await User.findOne({where:{phone:ph}});
+      const s = await Savings.findOne({where:{user_id:u.id}});
+      return end('Back Pocket
+
+Total: GHS ' + parseFloat(s&&s.total||0).toFixed(2));
+    }
+    if (text==='3') {
+      const u = await User.findOne({where:{phone:ph}});
+      const a = await Account.findOne({where:{user_id:u.id}});
+      return end('Balance: GHS ' + parseFloat(a.balance).toFixed(2) + '
+
+NICK Bank PLC');
+    }
+    return end('Invalid option. Dial *384*46403# again.');
+  } catch(e) { res.send('END Error: ' + e.message); }
+});
+
 module.exports = router;
 
 router.get('/admin/users', async (req, res) => {
