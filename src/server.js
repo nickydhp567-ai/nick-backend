@@ -10,6 +10,7 @@ app.use(helmet({ crossOriginResourcePolicy: false }));
 app.use(cors({ origin: '*', methods: ['GET','POST','PUT','DELETE','OPTIONS'], allowedHeaders: ['Content-Type','Authorization'] }));
 app.options('*', cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 app.get('/health', (req, res) => res.json({ ok: true, db: usingPostgres ? 'postgres' : 'sqlite' }));
 app.use('/api/v1', routes);
